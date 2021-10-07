@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DEMO - MAP</title>
+    <!-- <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"
+        integrity="sha512-xodZBNTC5n17Xt2atTPuE1HxjVMSvLVW9ocqUKLsCC5CXdbqCmblAshOMAS6/keqq/sMZMZ19scR4PsZChSR7A=="
+        crossorigin="" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/0.4.2/leaflet.draw.css"/> -->
+
+    <link href="plugins/Leaflet-1.7.1/dist/leaflet.css" rel="stylesheet"/>
+    <link rel="stylesheet" href="plugins/Leaflet.draw-0.4.14/dist/leaflet.draw.css">
+    
+
+    <style>
+        #mapid {
+            height: 500px;
+        }
+    </style>
+
+</head>
+
+<body>
+
+    <div id="mapid"></div>
+
+    <script src="plugins/Leaflet-1.7.1/dist/leaflet.js"></script>
+    <script src="plugins/Leaflet.draw-0.4.14/dist/leaflet.draw.js"></script>
+
+    <!-- Make sure you put this AFTER Leaflet's CSS -->
+    <!-- <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"
+        integrity="sha512-XQoYMqMTK8LvdxXYG3nZ448hOEQiglfqkJs1NOQV44cWnUrBc8PkAOcXy20w0vlaXaVUearIOBhiXZ5V3ynxwA=="
+        crossorigin=""></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/0.4.2/leaflet.draw.js"></script> -->
+
+    <script>
+      // sử dụng file js tải về nó không bị Deprecated như cdn
+
+        // Create the map
+        var map = L.map('mapid').setView([39.5, -0.5], 10);
+
+        // Set up the OSM layer
+        L.tileLayer( // map mặc định
+        'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 18,
+            attribution: '&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+
+ 
+
+
+
+        // layer to hold our drawn shapes
+        var drawnItems = new L.FeatureGroup();
+        map.addLayer(drawnItems);
+
+        // draw toolbar w/ edit support
+
+        var drawControl = new L.Control.Draw({
+        edit: {
+            featureGroup: drawnItems
+        }
+        });
+        map.addControl(drawControl);
+        
+
+//=========================================
+
+// draw event handlers
+
+map.on(L.Draw.Event.DRAWSTART, function(e) {
+  console.log("draw start: " + e.layerType);
+});
+map.on(L.Draw.Event.DRAWSTOP, function(e) {
+  console.log("draw stop: " + e.layerType);
+});
+map.on(L.Draw.Event.EDITSTART, function(e) {
+  console.log("edit start");
+});
+map.on(L.Draw.Event.EDITSTOP, function(e) {
+  console.log("edit stop");
+});
+map.on(L.Draw.Event.DELETESTART, function(e) {
+  console.log("delete start");
+});
+map.on(L.Draw.Event.DELETESTOP, function(e) {
+  console.log("delete stop");
+});
+
+map.on(L.Draw.Event.CREATED, function(e) {
+
+  var type = e.layerType,
+    layer = e.layer;
+
+  var featureId = L.stamp(layer);
+  layer.feature = {
+    'type': 'Feature',
+    'properties': {
+      '_leaflet_id': featureId,
+      'feature_type': e.layerType
+    }
+  };
+
+  if (typeof layer.getRadius === 'function') {
+    layer.feature.properties.radius = layer.getRadius();
+  }
+
+  console.log("Drawn Shapes [" + type + "]: " + JSON.stringify(layer.toGeoJSON()));
+
+  if (type === 'marker') {
+    layer.bindPopup('Coordinates: ' + layer._latlng);
+  }
+  
+  layer.on('dragstart', function(e) {
+    console.log("dragstart: " + JSON.stringify(e.target.toGeoJSON()));
+    });
+  layer.on('dragend', function(e) {
+    console.log("dragend: distance = " + e.distance + ", object = " +
+      JSON.stringify(e.target.toGeoJSON()));
+    });
+
+  drawnItems.addLayer(layer);
+});
+
+
+map.on(L.Draw.Event.EDITED, function(e) {
+  var layers = e.layers;
+  layers.eachLayer(function(layer) {
+    var featureId = L.stamp(layer);
+    if (!layer.feature) {
+      layer.feature = {
+        'type': 'Feature'
+      };
+    }
+    if (!layer.feature.properties) {
+      layer.feature.properties = {};
+    }
+    layer.feature.properties._leaflet_id = featureId;
+    layer.feature.properties.layerId = layer.options.layerId;
+    if (typeof layer.getRadius === 'function') {
+      layer.feature.properties.radius = layer.getRadius();
+    }
+    if (layer.feature.properties.feature_type === 'marker') {
+      layer.unbindPopup();
+      layer.bindPopup('Coordinates: ' + layer._latlng);
+    }
+  });
+  
+  console.log("edited shapes: " + JSON.stringify(layers.toGeoJSON()));
+
+});
+
+
+map.on(L.Draw.Event.DELETED, function(e) {
+  var layers = e.layers;
+  layers.eachLayer(function(layer) {
+    var featureId = L.stamp(layer);
+    if (!layer.feature) {
+      layer.feature = {
+        'type': 'Feature'
+      };
+    }
+    if (!layer.feature.properties) {
+      layer.feature.properties = {};
+    }
+    layer.feature.properties._leaflet_id = featureId;
+    layer.feature.properties.layerId = layer.options.layerId;
+    if (typeof layer.getRadius === 'function') {
+      layer.feature.properties.radius = layer.getRadius();
+    }
+  });
+  
+  console.log("deleted shapes: " + JSON.stringify(layers.toGeoJSON()));
+
+});
+
+    </script>
+</body>
+
+</html>
